@@ -16,14 +16,11 @@ show_updates_map = ['on': '0', 'off': '1']
 date_single_option_possibilites = ['reset']
 date_format_supported = ['d', 'h', 'm', 's']
 date_opration_supported = ['+', '-']
-devtools_options = ['-d', '-e', '-s']
 
 command_map = ['gfx'     : gfx_command_map,
                'layout'  : layout_command_map,
                'overdraw': overdraw_command_map,
                'updates' : show_updates_map]
-
-commandsArray = ["gfx", "layout", "overdraw", "updates", "date"]
 
 deviceIds = []
 
@@ -80,8 +77,6 @@ if (opts.s) {
     }
 }
 
-println("Serial Number: " + serialNumber)
-
 if (opts.v) {
     verbose = true
 }
@@ -93,8 +88,7 @@ private boolean isValidDeviceId(def serialNumber) {
 
 //get args
 String command
-options = new String[0]
-String option
+options = new String[1]
 int commandPosition
 
 if (serialNumber == 0) {
@@ -108,10 +102,6 @@ if (serialNumber == 0) {
     options = new String[opts.arguments().size() - commandPosition]
 }
 
-//String command = opts.arguments().get(0)
-//String option
-//options = new String[opts.arguments().size() - 1]
-
 switch (command) {
     case "gfx":
     case "layout":
@@ -120,7 +110,7 @@ switch (command) {
         if (opts.arguments().size() != 2) {
             printHelpForSpecificCommand(command, false, null)
         }
-        option = opts.arguments().get(1)
+        options[0] = opts.arguments().get(1)
         break
 
     case "date":
@@ -141,25 +131,25 @@ switch (command) {
 def adbCmd = ""
 switch (command) {
     case "gfx":
-        adbCmd = "shell setprop debug.hwui.profile " + gfx_command_map[option]
+        adbCmd = "shell setprop debug.hwui.profile " + gfx_command_map[options[0]]
         executeADBCommand(adbCmd)
         break
 
     case "layout":
-        adbCmd = "shell setprop debug.layout " + layout_command_map[option]
+        adbCmd = "shell setprop debug.layout " + layout_command_map[options[0]]
         executeADBCommand(adbCmd)
         break
 
     case "overdraw":
         //tricky, properties have changed over time
-        adbCmd = "shell setprop debug.hwui.overdraw " + overdraw_command_map[option]
+        adbCmd = "shell setprop debug.hwui.overdraw " + overdraw_command_map[options[0]]
         executeADBCommand(adbCmd)
-        adbCmd = "shell setprop debug.hwui.show_overdraw " + overdraw_command_map_preKitKat[option]
+        adbCmd = "shell setprop debug.hwui.show_overdraw " + overdraw_command_map_preKitKat[options[0]]
         executeADBCommand(adbCmd)
         break
 
     case "updates":
-        adbCmd = "shell service call SurfaceFlinger 1002 android.ui.ISurfaceComposer" + show_updates_map[option]
+        adbCmd = "shell service call SurfaceFlinger 1002 android.ui.ISurfaceComposer" + show_updates_map[options[0]]
         executeADBCommand(adbCmd)
         break
 
@@ -193,9 +183,9 @@ String buildResetCommand() {
     String minutesOfHour = fixFormat(String.valueOf(calendar.get(Calendar.MINUTE)))
     String secondsOfMinutes = fixFormat(String.valueOf(calendar.get(Calendar.SECOND)))
 
-    String adbCmd
+    String adbCommand
     if (isNOrLater()) {
-        adbCmd = "shell date " +
+        adbCommand = "shell date " +
                 monthOfYear +
                 dayOfMonth +
                 calendar.get(Calendar.HOUR_OF_DAY) +
@@ -205,7 +195,7 @@ String buildResetCommand() {
                 secondsOfMinutes
 
     } else {
-        adbCmd = "shell date -s " +
+        adbCommand = "shell date -s " +
                 calendar.get(Calendar.YEAR) +
                 monthOfYear +
                 dayOfMonth +
@@ -214,16 +204,16 @@ String buildResetCommand() {
                 minutesOfHour +
                 secondsOfMinutes
     }
-    return adbCmd
+    return adbCommand
 }
 
 String buildDateCommand() {
     if (options.size() == 1 && isAValidDateSingleOption(options[0])) {
-        buildResetCommand()
+        return buildResetCommand()
 
     } else {
         DateTime deviceDateTime = getDeviceDateTime()
-        String resultMessage = "Date changed from " + deviceDateTime + " to "
+        String commandResultMessage = "Date changed from " + deviceDateTime + " to "
 
         options.each { option ->
             if (option.length() > 4 || option.length() < 3) {
@@ -249,21 +239,19 @@ String buildDateCommand() {
             deviceDateTime = applyRangeToDate(deviceDateTime, operation, Integer.valueOf(range), rangeType)
         }
 
-        resultMessage += deviceDateTime
-        println(resultMessage)
+        commandResultMessage += deviceDateTime
+        println(commandResultMessage)
 
         String formattedDate = formatDateForAdbCommand(deviceDateTime)
+        String adbCommand
 
         if (isNOrLater()) {
-            adbCmd = "shell date " + formattedDate
-
+            adbCommand = "shell date " + formattedDate
         } else {
-            adbCmd = "shell date -s " + formattedDate
+            adbCommand = "shell date -s " + formattedDate
         }
-        println(adbCmd)
 
-        return adbCmd
-
+        return adbCommand
     }
 }
 
@@ -376,13 +364,14 @@ private String formatDateForAdbCommand(DateTime dateTime) {
 /* print help */
 
 void printDevtoolsUsageHelp(String additionalMessage) {
+    println()
     if (additionalMessage) {
         println("Error $additionalMessage")
         println()
     }
 
     println("Usage: devtools.groovy [-v] command option")
-    print("command: ")
+    print("Command: ")
     command_map.each { command, options ->
         print("\n  $command -> ")
         options.each {
@@ -394,18 +383,30 @@ void printDevtoolsUsageHelp(String additionalMessage) {
 }
 
 void printDevtoolsOptionsUsageHelp(String additionalMessage) {
-    println(additionalMessage)
     println()
-    // TODO: print devtools command options: -d, -e, -s
+    println(additionalMessage)
+
+    println("Usage: devtools.groovy options")
+    println()
+    println("Specify target device:")
+    println("-d                     Direct an adb command to the only attached USB device.")
+    println("                       Returns an error if more than one USB device is attached.")
+    println()
+    println("-e                     Direct an adb command to the only running emulator instance.")
+    println("                       Returns an error if more than one emulator instance is running.")
+    println()
+    println("-s <serialNumber>      Direct an adb command a specific emulator/device instance, referred to by its adb-assigned serial number.")
+    println("                       Directing Commands to a Specific Emulator/Device Instance.")
     println()
 
-    println("Run devtools --help for more details")
+    println("Run devtools --help for more details on how to use devtools.")
     println()
 
     System.exit(-1)
 }
 
 void printHelpForSpecificCommand(String command, boolean isOptionError, String option) {
+    println()
     switch (command) {
         case "gfx":
         case "layout":
@@ -413,22 +414,38 @@ void printHelpForSpecificCommand(String command, boolean isOptionError, String o
         case "updates":
             println("You need to provide two arguments: command and option")
             break
+
         case "date":
             if (isOptionError) {
                 println("Not valid command option: " + option + " for: " + command)
             } else {
                 println("Not valid command: " + command)
-                // TODO: printDateCommandHelp
             }
+            println()
+            println("Usage: devtools.groovy [-v] date options")
+            println()
+            println("+xd     Add [x] days to the device time.")
+            println("-xd     Subtract [x] days from the device time.")
+            println()
+            println("+xh     Add [x] hours to the device time.")
+            println("-xh     Subtract [x] hours from the device time.")
+            println()
+            println("+xm     Add [x] minutes to the device time.")
+            println("-xm     Subtract [x] minutes from the device time.")
+            println()
+            println("+xs     Add [x] seconds to the device time.")
+            println("-xs     Subtract [x] seconds from the device time.")
+            println()
             break
+
         case "devtools":
             printDevtoolsUsageHelp(option)
             break
+
         default:
             println("Could not find the command $command you provided")
             printDevtoolsUsageHelp(null)
     }
-    println()
     System.exit(-1)
 }
 
@@ -500,7 +517,7 @@ void checkConnectedDevices() {
     }
 }
 
-String executeADBCommand(String adbCmd) {
+String executeADBCommand(String adbCommand) {
     if (deviceIds.size == 0) {
         println("no devices connected")
         System.exit(-1)
@@ -510,7 +527,7 @@ String executeADBCommand(String adbCmd) {
 
     if (targetDevice == FLAG_TARGET_DEVICE_ALL) {
         deviceIds.each { deviceId ->
-            def adbConnect = "$adbExec -s $deviceId $adbCmd"
+            def adbConnect = "$adbExec -s $deviceId $adbCommand"
             if (verbose)
                 println("Executing $adbConnect")
             proc = adbConnect.execute()
@@ -522,15 +539,15 @@ String executeADBCommand(String adbCmd) {
     def adbConnect = "$adbExec "
     switch (targetDevice) {
         case FLAG_TARGET_DEVICE_USB:
-            adbConnect += "-d $adbCmd"
+            adbConnect += "-d $adbCommand"
             break
 
         case FLAG_TARGET_DEVICE_EMULATOR:
-            adbConnect += "-e $adbCmd"
+            adbConnect += "-e $adbCommand"
             break
 
         case FLAG_TARGET_DEVICE_BY_SERIAL:
-            adbConnect += "-s $serialNumber $adbCmd"
+            adbConnect += "-s $serialNumber $adbCommand"
             break
     }
 
