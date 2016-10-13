@@ -18,8 +18,6 @@ date_single_option_possibilites = ['reset']
 date_format_supported = ['d', 'h', 'm', 's']
 date_opration_supported = ['+', '-']
 
-commands = ["gfx", "layout", "overdraw", "updates", "date"]
-
 verbose = false
 serialNumber = ""
 targetDevice = ADBUtils.FLAG_TARGET_DEVICE_EMULATOR
@@ -115,25 +113,25 @@ switch (command) {
 
     case "layout":
         adbCommand = new Command("shell setprop debug.layout " + layout_command_map[options[0]])
-        adbCommand.execute(adbUtils.adbPath)
+        adbCommand.execute(adbUtils.getAdbPath())
         break
 
     case "overdraw":
         //tricky, properties have changed over time
         adbCommand = new Command("shell setprop debug.hwui.overdraw " + overdraw_command_map[options[0]])
-        adbCommand.execute(adbUtils.adbPath)
+        adbCommand.execute(adbUtils.getAdbPath())
         adbCommand = new Command("shell setprop debug.hwui.show_overdraw " + overdraw_command_map_preKitKat[options[0]])
-        adbCommand.execute(adbUtils.adbPath)
+        adbCommand.execute(adbUtils.getAdbPath())
         break
 
     case "updates":
         adbCommand = new Command("shell service call SurfaceFlinger 1002 android.ui.ISurfaceComposer" + show_updates_map[options[0]])
-        adbCommand.execute(adbUtils.adbPath)
+        adbCommand.execute(adbUtils.getAdbPath())
         break
 
     case "date":
         DateCommand dateCommand = new DateCommand(buildRequestedDate())
-        dateCommand.execute(adbUtils.adbPath)
+        dateCommand.execute(adbUtils.getAdbPath())
         break
 
     default:
@@ -141,12 +139,13 @@ switch (command) {
 
 }
 
-kickSystemService()
+//kickSystemService()
 System.exit(0)
 
-DateTime buildRequestedDate() {
+private DateTime buildRequestedDate() {
     if (options.size() == 1 && isAValidDateSingleOption(options[0])) {
         // Reset Command
+        println("Setting device date and time to now")
         return DateTime.now();
 
     } else {
@@ -250,12 +249,12 @@ private DateTime minusRange(DateTime fromDate, def rangeType, int range) {
     }
 }
 
-void kickSystemService() {
+private void kickSystemService() {
     int SYSPROPS_TRANSACTION = 1599295570 // ('_'<<24)|('S'<<16)|('P'<<8)|'R'
 
     def pingService = "shell service call activity $SYSPROPS_TRANSACTION"
     Command adbCommand = new Command(pingService)
-    adbCommand.execute(ADBUtils.adbPath)
+    adbCommand.execute(ADBUtils.getAdbPath())
 }
 
 interface ICommand {
@@ -285,21 +284,23 @@ public class Command implements ICommand {
 
 public class DateCommand {
 
+    private DateTime requestDate
     private DateTime requestedDate
     private String resultMessage = "Error"
 
     DateCommand(DateTime requestedDate) {
+        this.requestDate = DateTime.now()
         this.requestedDate = requestedDate
     }
 
     void execute(String adbPath) {
-        def adbCommand = adbPath + buildCommand(adbPath)
+        def adbCommand = adbPath + buildCommand(adbPath, requestedDate)
         def proc
         proc = adbCommand.execute()
         proc.waitFor()
         setResultMessage(proc.text)
 
-        println(getResultMessage())
+        println("Date changed from " + requestDate + " to " + getResultMessage())
     }
 
     void executeImmediate(String adbPath, String dateCommand) {
@@ -310,15 +311,14 @@ public class DateCommand {
         setResultMessage(proc.text)
 
         println(getResultMessage())
-
     }
 
-    private String buildCommand(String adbPath) {
+    private String buildCommand(String adbPath, DateTime date) {
         if (isNOrLater(adbPath)) {
-            return "shell date " + formatDate("MMddHHmmYYYY.ss")
+            return "shell date " + formatDate(adbPath, date)
 
         } else {
-            return "shell date -s " + formatDate("YYYYMMd.HHmmss")
+            return "shell date -s " + formatDate(adbPath, date)
         }
     }
 
@@ -331,9 +331,15 @@ public class DateCommand {
         }
     }
 
-    private String formatDate(String format) {
+    private String formatDate(String adbPath, DateTime date) {
+        String format
+        if (isNOrLater(adbPath)) {
+            format = "MMddHHmmYYYY.ss"
+        } else {
+            format = "YYYYMMd.HHmmss"
+        }
         DateTimeFormatter dateTimeFormatter = DateTimeFormat.forPattern(format)
-        return requestedDate.toString(dateTimeFormatter)
+        return date.toString(dateTimeFormatter)
     }
 
     void setResultMessage(String resultMessage) {
@@ -381,11 +387,10 @@ public class ADBUtils {
         this.targetDevice = targetDevice
         this.verbose = verbose
         this.serialNumber = serialNumber
-        adbPath = getAdbPath()
-
+        adbPath = requestAdbPath()
     }
 
-    public String getAdbExec() {
+    public String requestAdbExec() {
         def adbExec = "adb"
         if (isWindows())
             adbExec = adbExec + ".exe"
@@ -425,8 +430,8 @@ public class ADBUtils {
         }
     }
 
-    public String getAdbPath() {
-        def adbConnect = getAdbExec() + " "
+    public String requestAdbPath() {
+        def adbConnect = requestAdbExec() + " "
         switch (targetDevice) {
             case FLAG_TARGET_DEVICE_USB:
                 adbConnect += "-d "
@@ -443,12 +448,15 @@ public class ADBUtils {
         return adbConnect
     }
 
+    public String getAdbPath() {
+        return adbPath
+    }
+
     private boolean isWindows() {
         return (System.properties['os.name'].toLowerCase().contains('windows'))
     }
 
     public static String getDeviceDate() {
-
         DateCommand dateCommand = new DateCommand(null)
         dateCommand.executeImmediate(adbPath, "+%Y%m%d.%H%M%S")
         return dateCommand.getResultMessage()
