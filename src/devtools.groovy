@@ -37,10 +37,6 @@ targetDevice = FLAG_TARGET_DEVICE_ALL
 adbExec = getAdbPath()
 checkConnectedDevices()
 
-/**
- * Devtools options
- */
-
 def cli = new CliBuilder(usage: 'devtools.groovy command option')
 cli.with {
     v longOpt: 'verbose', 'prints additional output'
@@ -54,8 +50,12 @@ if (!opts) {
     printDevtoolsOptionsUsageHelp("Not provided correct option")
 }
 
+if (opts.v) {
+    verbose = true
+}
+
 if (opts.d && opts.e && opts.s || opts.d && opts.e || opts.s && opts.d || opts.s && opts.e) {
-    printDevtoolsOptionsUsageHelp("You should specify only 1 target")
+    printDevtoolsOptionsUsageHelp("You should specify only 1 target.")
 }
 
 if (opts.d) {
@@ -75,10 +75,6 @@ if (opts.s) {
     if (verbose) {
         println("Serial Number: " + serialNumber)
     }
-}
-
-if (opts.v) {
-    verbose = true
 }
 
 private boolean isValidDeviceId(def serialNumber) {
@@ -176,7 +172,6 @@ String fixFormat(String val) {
 
 String buildResetCommand() {
     Calendar calendar = Calendar.getInstance()
-    //println("Setting device date to : " + DateGroovyMethods.format(calendar.getTime(), "dd/MMM/yyyy HH:mm:ss"))
 
     String monthOfYear = fixFormat(String.valueOf((calendar.get(Calendar.MONTH) + 1)))
     String dayOfMonth = fixFormat(String.valueOf(calendar.get(Calendar.DAY_OF_MONTH)))
@@ -204,6 +199,8 @@ String buildResetCommand() {
                 minutesOfHour +
                 secondsOfMinutes
     }
+
+    println("Setting device date and time to now : " + getDeviceDate())
     return adbCommand
 }
 
@@ -213,7 +210,7 @@ String buildDateCommand() {
 
     } else {
         DateTime deviceDateTime = getDeviceDateTime()
-        String commandResultMessage = "Date changed from " + deviceDateTime + " to "
+        String commandResultMessage = "Date changed from " + getDeviceDate() + " to "
 
         options.each { option ->
             if (option.length() > 4 || option.length() < 3) {
@@ -239,9 +236,6 @@ String buildDateCommand() {
             deviceDateTime = applyRangeToDate(deviceDateTime, operation, Integer.valueOf(range), rangeType)
         }
 
-        commandResultMessage += deviceDateTime
-        println(commandResultMessage)
-
         String formattedDate = formatDateForAdbCommand(deviceDateTime)
         String adbCommand
 
@@ -250,6 +244,9 @@ String buildDateCommand() {
         } else {
             adbCommand = "shell date -s " + formattedDate
         }
+
+        commandResultMessage += formattedDate
+        println(commandResultMessage)
 
         return adbCommand
     }
