@@ -17,12 +17,12 @@ date_single_option_possibilites = ['reset']
 date_format_supported = ['d', 'h', 'm', 's']
 date_opration_supported = ['+', '-']
 
+commands = ["gfx", "layout", "overdraw", "updates", "date"]
+
 command_map = ['gfx'     : gfx_command_map,
                'layout'  : layout_command_map,
                'overdraw': overdraw_command_map,
                'updates' : show_updates_map]
-
-deviceIds = []
 
 verbose = false
 serialNumber = 0
@@ -30,12 +30,10 @@ serialNumber = 0
 FLAG_TARGET_DEVICE_USB = 1
 FLAG_TARGET_DEVICE_EMULATOR = 2
 FLAG_TARGET_DEVICE_BY_SERIAL = 3
-FLAG_TARGET_DEVICE_ALL = 4
-targetDevice = FLAG_TARGET_DEVICE_ALL
+targetDevice = FLAG_TARGET_DEVICE_EMULATOR
 
 //get adb exec
 adbExec = getAdbPath()
-checkConnectedDevices()
 
 def cli = new CliBuilder(usage: 'devtools.groovy command option')
 cli.with {
@@ -78,8 +76,9 @@ if (opts.s) {
 }
 
 private boolean isValidDeviceId(def serialNumber) {
-    if (serialNumber in deviceIds)
-        return true
+    if (serialNumber in commands)
+        return false
+    return true
 }
 
 //get args
@@ -488,50 +487,8 @@ String getAdbPath() {
     }
 }
 
-void checkConnectedDevices() {
-    def adbDevicesCmd = "$adbExec devices"
-    def proc = adbDevicesCmd.execute()
-    proc.waitFor()
-
-    def foundDevice = false
-
-    proc.in.text.eachLine {
-            //start at line 1 and check for a connected device
-        line, number ->
-            if (number > 0 && line.contains("device")) {
-                foundDevice = true
-                //grep out device ids
-                def values = line.split('\\t')
-                if (verbose)
-                    println("found id: " + values[0])
-                deviceIds.add(values[0])
-            }
-    }
-
-    if (!foundDevice) {
-        println("No usb devices")
-        System.exit(-1)
-    }
-}
-
 String executeADBCommand(String adbCommand) {
-    if (deviceIds.size == 0) {
-        println("no devices connected")
-        System.exit(-1)
-    }
-
     def proc
-
-    if (targetDevice == FLAG_TARGET_DEVICE_ALL) {
-        deviceIds.each { deviceId ->
-            def adbConnect = "$adbExec -s $deviceId $adbCommand"
-            if (verbose)
-                println("Executing $adbConnect")
-            proc = adbConnect.execute()
-            proc.waitFor()
-        }
-        return proc.text
-    }
 
     def adbConnect = "$adbExec "
     switch (targetDevice) {
