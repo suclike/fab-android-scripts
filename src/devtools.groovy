@@ -132,7 +132,7 @@ switch (command) {
         break
 
     case "date":
-        DateCommand dateCommand = new DateCommand(buildDateCommand())
+        DateCommand dateCommand = new DateCommand(buildRequestedDate())
         dateCommand.execute(adbUtils.adbPath)
         break
 
@@ -144,15 +144,10 @@ switch (command) {
 kickSystemService()
 System.exit(0)
 
-/* CMD METHODS */
-
-DateTime buildResetCommand() {
-    return DateTime.now()
-}
-
-DateTime buildDateCommand() {
+DateTime buildRequestedDate() {
     if (options.size() == 1 && isAValidDateSingleOption(options[0])) {
-        return buildResetCommand()
+        // Reset Command
+        return DateTime.now();
 
     } else {
         DateTime deviceDateTime = ADBUtils.getDeviceDateTime()
@@ -390,10 +385,6 @@ public class ADBUtils {
 
     }
 
-    public int getTargetDevice() {
-        return targetDevice
-    }
-
     public String getAdbExec() {
         def adbExec = "adb"
         if (isWindows())
@@ -461,10 +452,6 @@ public class ADBUtils {
         DateCommand dateCommand = new DateCommand(null)
         dateCommand.executeImmediate(adbPath, "+%Y%m%d.%H%M%S")
         return dateCommand.getResultMessage()
-
-        //Command adbCommand = new Command("shell date +%Y%m%d.%H%M%S")
-        //adbCommand.execute(adbPath)
-        //return adbCommand.getResultMessage()
     }
 
     public static DateTime getDeviceDateTime() {
@@ -485,9 +472,6 @@ public class ADBUtils {
         if (serialNumber in commands) {
             return false
         }
-        //if (verbose) {
-            println("Serial Number: " + serialNumber)
-        //}
         return true
     }
 
