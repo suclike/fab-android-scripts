@@ -1,4 +1,6 @@
 #!/usr/bin/env groovy
+import org.codehaus.groovy.tools.shell.Command
+
 /**
  * Created by dhelleberg on 24/09/14.
  * Improve command line parsing
@@ -89,16 +91,9 @@ if (adbCommand != null && adbCommand.check(options)) {
     adbCommand.execute(options, ADBUtils.adbPath)
 }
 
-//kickSystemService()
+ServiceCallCommand serviceCallCommand = new ServiceCallCommand()
+serviceCallCommand.execute(null, ADBUtils.adbPath)
 System.exit(0)
-
-private void kickSystemService() {
-//    int SYSPROPS_TRANSACTION = 1599295570 // ('_'<<24)|('S'<<16)|('P'<<8)|'R'
-//
-//    def pingService = "shell service call activity $SYSPROPS_TRANSACTION"
-//    Command adbCommand = new Command(pingService)
-//    adbCommand.execute(ADBUtils.getAdbPath())
-}
 
 interface ICommand {
     void execute(String[] options, String adbPath)
@@ -269,6 +264,29 @@ public class Log {
             printUsage(new DateCommand(), false, null)
         }
         System.exit(-1)
+    }
+}
+
+class ServiceCallCommand implements ICommand {
+
+    @Override
+    void execute(String[] options, String adbPath) {
+        int SYSPROPS_TRANSACTION = 1599295570
+        def adbCommand = adbPath + " shell service call activity $SYSPROPS_TRANSACTION"
+        //println(adbCommand)
+        def proc
+        proc = adbCommand.execute()
+        proc.waitFor()
+        //println(proc.text)
+    }
+
+    @Override
+    boolean check(String[] options) {
+        return true;
+    }
+
+    @Override
+    void printUsage() {
     }
 }
 
