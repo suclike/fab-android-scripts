@@ -1,3 +1,5 @@
+require "formula"
+
 class FabAndroidScripts < Formula
   desc "Fab Internal Android Script Tools"
   homepage "https://github.com/thefabulous/fab-android-scripts"
