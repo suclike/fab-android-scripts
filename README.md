@@ -84,5 +84,8 @@ On mac with brew just run:
     brew update
     brew install fab-android-scripts
 
-
-
+You can use devtools with adb-wrapper https://github.com/zielmicha/adb-wrapper
+    
+    curl https://raw.githubusercontent.com/zielmicha/adb-wrapper/master/adb_wrapper.sh > /usr/local/bin/adb-wrapper.sh
+    alias adb=/usr/local/bin/adb-wrapper.sh
+    
