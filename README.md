@@ -12,20 +12,16 @@ on and off via command line.
 Works on emulators and devices. And, yes: it will control multiple devices at once.
 
 ## Options
-    `-d`                    Direct an adb command to the only attached USB device.
+    -d                      Direct an adb command to the only attached USB device.
                             Returns an error if more than one USB device is attached.
 
-    `-e`                    Direct an adb command to the only running emulator instance.
+    -e                      Direct an adb command to the only running emulator instance.
                             Returns an error if more than one emulator instance is running.
 
-    `-s <serialNumber>`     Direct an adb command a specific emulator/device instance, referred to by its adb-assigned serial number.
+    -s <serialNumber>       Direct an adb command a specific emulator/device instance, referred to by its adb-assigned serial number.
                             Directing Commands to a Specific Emulator/Device Instance.
 
-    `-v`                    Print additional details about the results of your command.
-
-Check the video:
-
-[![IMAGE ALT TEXT HERE](http://img.youtube.com/vi/GOJaOsJ0BJs/0.jpg)](http://www.youtube.com/watch?v=GOJaOsJ0BJs)
+    -v                      Print additional details about the results of your command.
 
 ## Commands
 
@@ -56,6 +52,10 @@ Example: `date +1h +30m -1d`
 `date +[0-99]s` will add the specified number of *seconds* to the device time
 
 `date -[0-99]s` will subtract the specified number of *seconds* from the device time
+
+Check the video:
+
+[![IMAGE ALT TEXT HERE](http://img.youtube.com/vi/GOJaOsJ0BJs/0.jpg)](http://www.youtube.com/watch?v=GOJaOsJ0BJs)
 
 # adbwifi
 
