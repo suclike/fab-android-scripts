@@ -79,8 +79,7 @@ switch (command) {
         adbCommand = new DateCommand()
         break
     default:
-        println("Could not find the command $command you provided")
-        Log.printUsage(command)
+        Log.printUsage(true, "Could not find the command $command you provided")
 }
 
 if (adbCommand != null && adbCommand.check(options)) {
