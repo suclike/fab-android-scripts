@@ -1,4 +1,6 @@
 #!/usr/bin/env groovy
+import org.codehaus.groovy.tools.shell.Command
+
 /**
  * Created by dhelleberg on 24/09/14.
  * Improve command line parsing
@@ -9,7 +11,7 @@ import org.joda.time.format.*
 
 verbose = false
 serialNumber = ""
-targetDevice = ADBUtils.FLAG_TARGET_DEVICE_EMULATOR
+targetDevice = 0
 
 def cli = new CliBuilder()
 cli.with {
@@ -89,16 +91,9 @@ if (adbCommand != null && adbCommand.check(options)) {
     adbCommand.execute(options, ADBUtils.adbPath)
 }
 
-//kickSystemService()
+ServiceCallCommand serviceCallCommand = new ServiceCallCommand()
+serviceCallCommand.execute(null, ADBUtils.adbPath)
 System.exit(0)
-
-private void kickSystemService() {
-//    int SYSPROPS_TRANSACTION = 1599295570 // ('_'<<24)|('S'<<16)|('P'<<8)|'R'
-//
-//    def pingService = "shell service call activity $SYSPROPS_TRANSACTION"
-//    Command adbCommand = new Command(pingService)
-//    adbCommand.execute(ADBUtils.getAdbPath())
-}
 
 interface ICommand {
     void execute(String[] options, String adbPath)
@@ -272,12 +267,35 @@ public class Log {
     }
 }
 
-class GfxCommand implements ICommand {
-    String[] gfx_command_map = ['on': 'visual_bars', 'off': 'false', 'lines': 'visual_lines']
+class ServiceCallCommand implements ICommand {
 
     @Override
     void execute(String[] options, String adbPath) {
-        def adbCommand = adbPath + "shell setprop debug.hwui.profile " + gfx_command_map[options[1]]
+        int SYSPROPS_TRANSACTION = 1599295570
+        def adbCommand = adbPath + " shell service call activity $SYSPROPS_TRANSACTION"
+        //println(adbCommand)
+        def proc
+        proc = adbCommand.execute()
+        proc.waitFor()
+        //println(proc.text)
+    }
+
+    @Override
+    boolean check(String[] options) {
+        return true;
+    }
+
+    @Override
+    void printUsage() {
+    }
+}
+
+class GfxCommand implements ICommand {
+    def gfx_command_map = ['on': 'visual_bars', 'off': 'false', 'lines': 'visual_lines']
+
+    @Override
+    void execute(String[] options, String adbPath) {
+        def adbCommand = adbPath + "shell setprop debug.hwui.profile " + gfx_command_map[options[0]]
         println(adbCommand)
         def proc
         proc = adbCommand.execute()
@@ -307,7 +325,7 @@ class GfxCommand implements ICommand {
 }
 
 class LayoutCommand implements ICommand {
-    String[] layout_command_map = ['on': 'true', 'off': 'false']
+    def layout_command_map = ['on': 'true', 'off': 'false']
 
     @Override
     void execute(String[] options, String adbPath) {
@@ -340,8 +358,8 @@ class LayoutCommand implements ICommand {
 }
 
 class OverdrawCommand implements ICommand {
-    String[] overdraw_command_map = ['on': 'show', 'off': 'false', 'deut': 'show_deuteranomaly']
-    String[] overdraw_command_map_preKitKat = ['on': 'true', 'off': 'false']
+    def overdraw_command_map = ['on': 'show', 'off': 'false', 'deut': 'show_deuteranomaly']
+    def overdraw_command_map_preKitKat = ['on': 'true', 'off': 'false']
 
     @Override
     void execute(String[] options, String adbPath) {
@@ -380,7 +398,7 @@ class OverdrawCommand implements ICommand {
 }
 
 class UpdatesCommand implements ICommand {
-    String[] show_updates_map = ['on': '0', 'off': '1']
+    def show_updates_map = ['on': '0', 'off': '1']
 
     @Override
     void execute(String[] options, String adbPath) {
@@ -500,7 +518,7 @@ class DateCommand implements ICommand {
         if (isNorLater) {
             format = "MMddHHmmYYYY.ss"
         } else {
-            format = "YYYYMMd.HHmmss"
+            format = "YYYYMMdd.HHmmss"
         }
         DateTimeFormatter dateTimeFormatter = DateTimeFormat.forPattern(format)
         return date.toString(dateTimeFormatter)
