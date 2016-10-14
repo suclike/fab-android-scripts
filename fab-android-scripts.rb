@@ -4,8 +4,9 @@
 
 class FabAndroidScripts < Formula
   desc ""
-  homepage ""
+  homepage "https://github.com/thefabulous/fab-android-scripts"
   url "https://github.com/thefabulous/fab-android-scripts/archive/master.tar.gz"
+  version "1.1.3"
   sha256 ""
 
   # depends_on "cmake" => :build
