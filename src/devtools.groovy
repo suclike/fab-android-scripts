@@ -61,6 +61,9 @@ if (opts.e) {
     options = opts.arguments().subList(1, opts.arguments().size())
 }
 
+println(command)
+println(options)
+
 //get adb exec
 ADBUtils adbUtils = new ADBUtils(targetDevice, verbose, serialNumber)
 
@@ -273,11 +276,11 @@ public class Log {
 }
 
 class GfxCommand implements ICommand {
-    String[] gfx_command_map = ['on': 'visual_bars', 'off': 'false', 'lines': 'visual_lines']
+    def gfx_command_map = ['on': 'visual_bars', 'off': 'false', 'lines': 'visual_lines']
 
     @Override
     void execute(String[] options, String adbPath) {
-        def adbCommand = adbPath + "shell setprop debug.hwui.profile " + gfx_command_map[options[1]]
+        def adbCommand = adbPath + "shell setprop debug.hwui.profile " + gfx_command_map[options[0]]
         println(adbCommand)
         def proc
         proc = adbCommand.execute()
@@ -307,7 +310,7 @@ class GfxCommand implements ICommand {
 }
 
 class LayoutCommand implements ICommand {
-    String[] layout_command_map = ['on': 'true', 'off': 'false']
+    def layout_command_map = ['on': 'true', 'off': 'false']
 
     @Override
     void execute(String[] options, String adbPath) {
@@ -340,8 +343,8 @@ class LayoutCommand implements ICommand {
 }
 
 class OverdrawCommand implements ICommand {
-    String[] overdraw_command_map = ['on': 'show', 'off': 'false', 'deut': 'show_deuteranomaly']
-    String[] overdraw_command_map_preKitKat = ['on': 'true', 'off': 'false']
+    def overdraw_command_map = ['on': 'show', 'off': 'false', 'deut': 'show_deuteranomaly']
+    def overdraw_command_map_preKitKat = ['on': 'true', 'off': 'false']
 
     @Override
     void execute(String[] options, String adbPath) {
@@ -380,7 +383,7 @@ class OverdrawCommand implements ICommand {
 }
 
 class UpdatesCommand implements ICommand {
-    String[] show_updates_map = ['on': '0', 'off': '1']
+    def show_updates_map = ['on': '0', 'off': '1']
 
     @Override
     void execute(String[] options, String adbPath) {
