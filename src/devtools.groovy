@@ -51,6 +51,9 @@ if (opts.e) {
     targetDevice = ADBUtils.FLAG_TARGET_DEVICE_BY_SERIAL
     serialNumber = opts.s
 
+    if (!Character.isDigit(serialNumber.charAt(1))) {
+        Log.printUsage(false, "Not valid serial number: " + serialNumber)
+    }
     command = opts.arguments().get(0)
     options = opts.arguments().subList(1, opts.arguments().size())
 } else {
