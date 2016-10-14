@@ -1,22 +1,13 @@
-require "formula"
-
-class Androidscripts < Formula
-
-  homepage 'https://github.com/dhelleberg/android-scripts'
-  url 'https://github.com/dhelleberg/android-scripts/archive/1.0.4.tar.gz'
-  sha256 'fd6b541c647c3fce103d7844e62e7161a769cd4900fe449c5ce74d7a5354dcb1'
-  head 'https://github.com/dhelleberg/android-scripts.git'
-
-  depends_on "groovy"
+class AndroidScripts < Formula
+  desc ""
+  homepage "https://github.com/thefabulous/android-scripts"
+  url "https://github.com/thefabulous/android-scripts/archive/1.1.2.tar.gz"
+  version "1.1.2"
+  sha256 "5aaa7ca990360a0931aa3a63679d9e554f942f2dc159b38f1242b7862ab76682"
 
   def install
     bin.install 'src/devtools.groovy' => 'devtools'
     bin.install 'src/adbwifi.groovy' => 'adbwifi'
     bin.install 'src/adbscreenrecord.groovy' => 'adbscreenrecord'
-  end
-
-  test do
-    output = `#{bin}/devtools --help`.strip
-    assert_match /^usage: devtools/, output
   end
 end
