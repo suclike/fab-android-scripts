@@ -66,7 +66,7 @@ devtools [-d | -e | -s <serialNumber>] date options
 Example with reset command
 
 ```cmd
-devtools [-d | -e | -s <serialNumber>] reset
+devtools [-d | -e | -s <serialNumber>] date reset
 ```
 
 
