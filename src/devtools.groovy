@@ -21,13 +21,12 @@ cli.with {
 def opts = cli.parse(args)
 
 if (!opts || opts.arguments().size() == 0) {
-    Log.printDevtoolsOptionsUsageHelp("Not provided correct option")
-    System.exit(0)
+    Log.printUsage(false, "Not provided correct option")
 }
 
 if (opts.d && opts.e && opts.s || opts.d && opts.e || opts.s && opts.d || opts.s && opts.e) {
-    Log.printDevtoolsOptionsUsageHelp("You should specify only 1 target.")
-    System.exit(0)
+    Log.printUsage(false, "You should specify only 1 target.")
+    Log.printUsage("You should specify only 1 target.")
 }
 
 if (opts.v) {
@@ -80,6 +79,7 @@ switch (command) {
         adbCommand = new DateCommand()
         break
     default:
+        println("Could not find the command $command you provided")
         Log.printUsage(command)
 }
 
@@ -231,16 +231,15 @@ public class Log {
         command.printUsage()
     }
 
-    public static void printUsage(String command) {
-        if (command) {
-            println("Could not find the command $command you provided")
+    public static void printUsage(boolean shouldLogCommands, String additionalMessage) {
+        if (additionalMessage) {
+            println(additionalMessage)
             println()
         }
 
         println("Usage: devtools.groovy [-v] command option")
         println()
-
-        println("Usage: devtools.groovy options")
+        println("DEVTOOLS OPTIONS")
         println()
         println("Specify target device:")
         println("-d                     Direct an adb command to the only attached USB device.")
@@ -253,15 +252,20 @@ public class Log {
         println("                       Directing Commands to a Specific Emulator/Device Instance.")
         println()
 
-        println("Run devtools --help for more details on how to use devtools.")
-        println()
+        if (!shouldLogCommands) {
+            println("Run devtools --help for more details on how to use devtools.")
+            println()
 
-        printUsage(new GfxCommand(), false)
-        printUsage(new LayoutCommand(), false)
-        printUsage(new OverdrawCommand(), false)
-        printUsage(new UpdatesCommand(), false)
-        printUsage(new DateCommand(), false, null)
+        } else {
+            println("DEVTOOLS OPTIONS")
+            println()
 
+            printUsage(new GfxCommand(), false)
+            printUsage(new LayoutCommand(), false)
+            printUsage(new OverdrawCommand(), false)
+            printUsage(new UpdatesCommand(), false)
+            printUsage(new DateCommand(), false, null)
+        }
         System.exit(-1)
     }
 }
