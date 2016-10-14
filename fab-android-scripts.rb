@@ -5,7 +5,7 @@ class FabAndroidScripts < Formula
   homepage "https://github.com/thefabulous/fab-android-scripts"
   url "https://github.com/thefabulous/fab-android-scripts/archive/master.tar.gz"
   version "1.1.3"
-  sha256 "324ce5d98c079a2feacbcde6f3e541599871910f9acebebbe9728353dd6fa12b"
+  sha256 "7fdb794fbecb17b3d695d7a28b369a449b5afa5925d6fbba8242a17e6c7cb5e8"
   head "https://github.com/thefabulous/fab-android-scripts.git"
 
   depends_on "groovy"
