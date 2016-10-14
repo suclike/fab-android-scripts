@@ -18,8 +18,10 @@ Works on emulators and devices. And, yes: it will control multiple devices at on
     `-e`                    Direct an adb command to the only running emulator instance.
                             Returns an error if more than one emulator instance is running.
 
-    `-s <serialNumber> `    Direct an adb command a specific emulator/device instance, referred to by its adb-assigned serial number.
+    `-s <serialNumber>`     Direct an adb command a specific emulator/device instance, referred to by its adb-assigned serial number.
                             Directing Commands to a Specific Emulator/Device Instance.
+
+    `-v`                    Print additional details about the results of your command.
 
 Check the video:
 
