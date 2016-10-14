@@ -1,22 +1,12 @@
 #!/usr/bin/env groovy
-import groovyjarjarantlr.collections.List
-@Grab('joda-time:joda-time:2.9.4')
-import org.joda.time.DateTime
-import org.joda.time.format.*
-
 /**
  * Created by dhelleberg on 24/09/14.
  * Improve command line parsing
  */
-
-gfx_command_map = ['on': 'visual_bars', 'off': 'false', 'lines': 'visual_lines']
-layout_command_map = ['on': 'true', 'off': 'false']
-overdraw_command_map = ['on': 'show', 'off': 'false', 'deut': 'show_deuteranomaly']
-overdraw_command_map_preKitKat = ['on': 'true', 'off': 'false']
-show_updates_map = ['on': '0', 'off': '1']
-date_single_option_possibilites = ['reset']
-date_format_supported = ['d', 'h', 'm', 's']
-date_opration_supported = ['+', '-']
+@Grab('joda-time:joda-time:2.9.4')
+import org.joda.time.DateTime
+import org.joda.time.format.*
+commands = ["gfx", "layout", "overdraw", "updates", "date"]
 
 verbose = false
 serialNumber = ""
@@ -31,16 +21,18 @@ cli.with {
 }
 def opts = cli.parse(args)
 
-if (!opts) {
+if (!opts || opts.arguments().size() == 0) {
     Log.printDevtoolsOptionsUsageHelp("Not provided correct option")
-}
-
-if (opts.v) {
-    verbose = true
+    System.exit(0)
 }
 
 if (opts.d && opts.e && opts.s || opts.d && opts.e || opts.s && opts.d || opts.s && opts.e) {
     Log.printDevtoolsOptionsUsageHelp("You should specify only 1 target.")
+    System.exit(0)
+}
+
+if (opts.v) {
+    verbose = true
 }
 
 if (opts.d) {
@@ -54,9 +46,6 @@ if (opts.e) {
 if (opts.s) {
     targetDevice = ADBUtils.FLAG_TARGET_DEVICE_BY_SERIAL
     serialNumber = opts.arguments().get(0)
-    if (!ADBUtils.isValidDeviceId(serialNumber)) {
-        Log.printDevtoolsOptionsUsageHelp("Not valid serial number " + serialNumber)
-    }
 }
 
 //get adb exec
@@ -64,316 +53,67 @@ ADBUtils adbUtils = new ADBUtils(targetDevice, verbose, serialNumber)
 
 //get args
 String command
-options = new String[1]
-int commandPosition
+String[] options
 
-if (serialNumber == "") {
-    commandPosition = 1
-    command = opts.arguments().get(0)
-    options = new String[opts.arguments().size() - commandPosition]
-
-} else {
-    commandPosition = 2
+if (opts.e || opts.d) {
     command = opts.arguments().get(1)
-    options = new String[opts.arguments().size() - commandPosition]
+    options = opts.arguments().subList(2, opts.arguments().size())
+} else if (opts.s) {
+    command = opts.arguments().get(2)
+    options = opts.arguments().subList(3, opts.arguments().size())
+} else {
+    command = opts.arguments().get(0)
+    options = opts.arguments().subList(1, opts.arguments().size())
 }
 
+println(command)
+println(options)
+
+ICommand adbCommand
 switch (command) {
     case "gfx":
+        adbCommand = new GfxCommand()
+        break
     case "layout":
+        adbCommand = new LayoutCommand()
+        break
     case "overdraw":
+        adbCommand = new OverdrawCommand()
+        break
     case "updates":
-        if (opts.arguments().size() != 2) {
-            Log.printHelpForSpecificCommand(command, true, null)
-        }
-        options[0] = opts.arguments().get(1)
+        adbCommand = new UpdatesCommand()
         break
-
     case "date":
-        for (int i = 0; i < options.length; i++) {
-            options[i] = opts.arguments().get(i + commandPosition)
-        }
-
-        if (options.size() == 0)
-            Log.printHelpForSpecificCommand(command, false, null)
-
-        if (options.size() == 1) {
-            if (!isAValidDateSingleOption(options[0]) && !isAValidDateOption(options[0])) {
-                Log.printHelpForSpecificCommand(command, false, null)
-            }
-        }
-}
-
-Command adbCommand
-switch (command) {
-    case "gfx":
-        adbCommand = new Command()
-        adbCommand.execute("shell setprop debug.hwui.profile " + gfx_command_map[options[0]])
+        adbCommand = new DateCommand()
         break
-
-    case "layout":
-        adbCommand = new Command("shell setprop debug.layout " + layout_command_map[options[0]])
-        adbCommand.execute(adbUtils.getAdbPath())
-        break
-
-    case "overdraw":
-        //tricky, properties have changed over time
-        adbCommand = new Command("shell setprop debug.hwui.overdraw " + overdraw_command_map[options[0]])
-        adbCommand.execute(adbUtils.getAdbPath())
-        adbCommand = new Command("shell setprop debug.hwui.show_overdraw " + overdraw_command_map_preKitKat[options[0]])
-        adbCommand.execute(adbUtils.getAdbPath())
-        break
-
-    case "updates":
-        adbCommand = new Command("shell service call SurfaceFlinger 1002 android.ui.ISurfaceComposer" + show_updates_map[options[0]])
-        adbCommand.execute(adbUtils.getAdbPath())
-        break
-
-    case "date":
-        DateCommand dateCommand = new DateCommand(buildRequestedDate())
-        dateCommand.execute(adbUtils.getAdbPath())
-        break
-
     default:
         Log.printHelpForSpecificCommand(command, false, null)
 
+}
+if (adbCommand != null && adbCommand.check(options)) {
+    adbCommand.execute(options, ADBUtils.adbPath)
 }
 
 //kickSystemService()
 System.exit(0)
 
-private DateTime buildRequestedDate() {
-    if (options.size() == 1 && isAValidDateSingleOption(options[0])) {
-        // Reset Command
-        println("Setting device date and time to now")
-        return DateTime.now();
-
-    } else {
-        DateTime deviceDateTime = ADBUtils.getDeviceDateTime()
-
-        options.each { option ->
-            if (option.length() > 4 || option.length() < 3) {
-                Log.printHelpForSpecificCommand("date", true, option)
-            }
-
-            def operation = option.take(1)
-            def rangeType = option.reverse().take(1).reverse()
-
-            if (!(operation in date_opration_supported)) {
-                Log.printHelpForSpecificCommand("date", true, option)
-            }
-
-            if (!(rangeType in date_format_supported)) {
-                Log.printHelpForSpecificCommand("date", true, option)
-            }
-
-            def range = option.substring(1, option.length() - 1)
-            if (!range.isNumber()) {
-                Log.printHelpForSpecificCommand("date", true, option)
-            }
-
-            deviceDateTime = applyRangeToDate(deviceDateTime, operation, Integer.valueOf(range), rangeType)
-        }
-
-        return deviceDateTime
-    }
-}
-
-private boolean isAValidDateOption(String option) {
-    def operation = option.take(1)
-    def rangeType = option.reverse().take(1).reverse()
-
-    if (!(operation in date_opration_supported)) {
-        return false
-    }
-
-    if (!(rangeType in date_format_supported)) {
-        return false
-    }
-
-    def range = option.substring(1, option.length() - 1)
-    if (!range.isNumber()) {
-        return false
-    }
-
-    return true
-}
-
-private boolean isAValidDateSingleOption(String option) {
-    if (option in date_single_option_possibilites)
-        return true
-
-    return false
-}
-
-private DateTime applyRangeToDate(DateTime dateTime, def operation, int range, def rangeType) {
-    if (operation.equals("+")) {
-        return addRange(dateTime, rangeType, range)
-    } else {
-        return minusRange(dateTime, rangeType, range)
-    }
-}
-
-private DateTime addRange(DateTime fromDate, def rangeType, int range) {
-    switch (rangeType) {
-        case "d":
-            return fromDate.plusDays(range)
-
-        case "h":
-            return fromDate.plusHours(range)
-
-        case "m":
-            return fromDate.plusMinutes(range)
-
-        case "s":
-            return fromDate.plusSeconds(range)
-    }
-}
-
-private DateTime minusRange(DateTime fromDate, def rangeType, int range) {
-    switch (rangeType) {
-        case "d":
-            return fromDate.minusDays(range)
-            break
-
-        case "h":
-            return fromDate.minusHours(range)
-            break
-
-        case "m":
-            return fromDate.minusMinutes(range)
-            break
-
-        case "s":
-            return fromDate.minusSeconds(range)
-    }
-}
-
 private void kickSystemService() {
-    int SYSPROPS_TRANSACTION = 1599295570 // ('_'<<24)|('S'<<16)|('P'<<8)|'R'
-
-    def pingService = "shell service call activity $SYSPROPS_TRANSACTION"
-    Command adbCommand = new Command(pingService)
-    adbCommand.execute(ADBUtils.getAdbPath())
+//    int SYSPROPS_TRANSACTION = 1599295570 // ('_'<<24)|('S'<<16)|('P'<<8)|'R'
+//
+//    def pingService = "shell service call activity $SYSPROPS_TRANSACTION"
+//    Command adbCommand = new Command(pingService)
+//    adbCommand.execute(ADBUtils.getAdbPath())
 }
 
 interface ICommand {
-    void execute(String adbPath)
-}
+    void execute(String[] options, String adbPath)
 
-public class Command implements ICommand {
-    private String cmd
-    private String resultMessage = "Error"
+    boolean check(String[] options)
 
-    public Command(String cmd) {
-        this.cmd = cmd;
-    }
-
-    public void execute(String adbPath) {
-        def adbCommand = adbPath + cmd
-        def proc
-        proc = adbCommand.execute()
-        proc.waitFor()
-        resultMessage = proc.text
-    }
-
-    public String getResultMessage() {
-        return resultMessage
-    }
-}
-
-public class DateCommand {
-
-    private DateTime requestDate
-    private DateTime requestedDate
-    private String resultMessage = "Error"
-
-    DateCommand(DateTime requestedDate) {
-        this.requestDate = DateTime.now()
-        this.requestedDate = requestedDate
-    }
-
-    void execute(String adbPath) {
-        def adbCommand = adbPath + buildCommand(adbPath, requestedDate)
-        def proc
-        proc = adbCommand.execute()
-        proc.waitFor()
-        setResultMessage(proc.text)
-
-        println("Date changed from " + requestDate + " to " + getResultMessage())
-    }
-
-    void executeImmediate(String adbPath, String dateCommand) {
-        def adbCommand = adbPath + buildCommandImmediate(adbPath, dateCommand)
-        def proc
-        proc = adbCommand.execute()
-        proc.waitFor()
-        setResultMessage(proc.text)
-
-        println(getResultMessage())
-    }
-
-    private String buildCommand(String adbPath, DateTime date) {
-        if (isNOrLater(adbPath)) {
-            return "shell date " + formatDate(adbPath, date)
-
-        } else {
-            return "shell date -s " + formatDate(adbPath, date)
-        }
-    }
-
-    private String buildCommandImmediate(String adbPath, String dateCommand) {
-        if (isNOrLater(adbPath)) {
-            return "shell date " + dateCommand
-
-        } else {
-            return "shell date -s " + dateCommand
-        }
-    }
-
-    private String formatDate(String adbPath, DateTime date) {
-        String format
-        if (isNOrLater(adbPath)) {
-            format = "MMddHHmmYYYY.ss"
-        } else {
-            format = "YYYYMMd.HHmmss"
-        }
-        DateTimeFormatter dateTimeFormatter = DateTimeFormat.forPattern(format)
-        return date.toString(dateTimeFormatter)
-    }
-
-    void setResultMessage(String resultMessage) {
-        this.resultMessage = resultMessage
-    }
-
-    public String getResultMessage() {
-        return resultMessage
-    }
-
-    private boolean isNOrLater(String adbPath) {
-        GString apiLevelCmd = "$adbPath shell getprop ro.build.version.sdk";
-        def proc
-        proc = apiLevelCmd.execute()
-        proc.waitFor()
-
-        Integer apiLevel = 0
-        proc.in.text.eachLine { apiLevel = it.toInteger() }
-        if (apiLevel == 0) {
-            println("Could not retrieve API Level")
-            System.exit(-1)
-        } else {
-            if (apiLevel >= 24) {
-                return true
-            } else {
-                return false
-            }
-        }
-    }
+    void printUsage()
 }
 
 public class ADBUtils {
-    public static String[] commands = ["gfx", "layout", "overdraw", "updates", "date"]
-
     public static int FLAG_TARGET_DEVICE_USB = 1
     public static int FLAG_TARGET_DEVICE_EMULATOR = 2
     public static int FLAG_TARGET_DEVICE_BY_SERIAL = 3
@@ -455,34 +195,6 @@ public class ADBUtils {
     private boolean isWindows() {
         return (System.properties['os.name'].toLowerCase().contains('windows'))
     }
-
-    public static String getDeviceDate() {
-        DateCommand dateCommand = new DateCommand(null)
-        dateCommand.executeImmediate(adbPath, "+%Y%m%d.%H%M%S")
-        return dateCommand.getResultMessage()
-    }
-
-    public static DateTime getDeviceDateTime() {
-        String deviceDate = getDeviceDate()
-        println(deviceDate)
-
-        int year = Integer.valueOf(deviceDate.take(4))
-        int month = Integer.valueOf(deviceDate[4..5])
-        int day = Integer.valueOf(deviceDate[6..7])
-        int hours = Integer.valueOf(deviceDate[9..10])
-        int minutes = Integer.valueOf(deviceDate[11..12])
-        int seconds = Integer.valueOf(deviceDate[13..14])
-
-        return new DateTime(year, month, day, hours, minutes, seconds)
-    }
-
-    public static boolean isValidDeviceId(def serialNumber) {
-        if (serialNumber in commands) {
-            return false
-        }
-        return true
-    }
-
 }
 
 public class Log {
@@ -619,5 +331,352 @@ public class Log {
         }
         System.exit(-1)
     }
+}
 
+class UpdatesCommand implements ICommand {
+    String[] show_updates_map = ['on': '0', 'off': '1']
+
+    @Override
+    void execute(String[] options, String adbPath) {
+        def adbCommand = adbPath + "shell service call SurfaceFlinger 1002 android.ui.ISurfaceComposer" + show_updates_map[options[0]]
+        def proc
+        proc = adbCommand.execute()
+        proc.waitFor()
+        println(proc.text)
+    }
+
+    @Override
+    boolean check(String[] options) {
+        if (options.size() != 1) {
+            println("You need to provide two arguments: command and option")
+            printUsage()
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    void printUsage() {
+        println("Usage: devtools.groovy [-v] updates option")
+        println()
+        println("on         0")
+        println("off        1")
+        println()
+    }
+}
+
+class OverdrawCommand implements ICommand {
+    String[] overdraw_command_map = ['on': 'show', 'off': 'false', 'deut': 'show_deuteranomaly']
+    String[] overdraw_command_map_preKitKat = ['on': 'true', 'off': 'false']
+
+    @Override
+    void execute(String[] options, String adbPath) {
+        def adbCommand = adbPath + "shell setprop debug.hwui.overdraw " + overdraw_command_map[options[0]]
+        def proc
+        proc = adbCommand.execute()
+        proc.waitFor()
+        println(proc.text)
+
+        adbCommand = adbPath + "shell setprop debug.hwui.show_overdraw " + overdraw_command_map_preKitKat[options[0]]
+        proc = adbCommand.execute()
+        proc.waitFor()
+        println(proc.text)
+    }
+
+    @Override
+    boolean check(String[] options) {
+        if (options.size() != 1) {
+            println("You need to provide two arguments: command and option")
+            printUsage()
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    void printUsage() {
+        println("Usage: devtools.groovy [-v] layout option")
+        println()
+        println("on         true")
+        println("off        false")
+        println()
+    }
+}
+
+class LayoutCommand implements ICommand {
+    String[] layout_command_map = ['on': 'true', 'off': 'false']
+
+    @Override
+    void execute(String[] options, String adbPath) {
+        def adbCommand = adbPath + "shell setprop debug.layout " + layout_command_map[options[0]]
+        def proc
+        proc = adbCommand.execute()
+        proc.waitFor()
+        println(proc.text)
+    }
+
+    @Override
+    boolean check(String[] options) {
+        if (options.size() != 1) {
+            println("You need to provide two arguments: command and option")
+            printUsage()
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    void printUsage() {
+        println("Usage: devtools.groovy [-v] layout option")
+        println()
+        println("on         true")
+        println("off        false")
+        println()
+    }
+}
+
+class GfxCommand implements ICommand {
+    String[] gfx_command_map = ['on': 'visual_bars', 'off': 'false', 'lines': 'visual_lines']
+
+    @Override
+    void execute(String[] options, String adbPath) {
+        def adbCommand = adbPath + "shell setprop debug.hwui.profile " + gfx_command_map[options[1]]
+        def proc
+        proc = adbCommand.execute()
+        proc.waitFor()
+        println(proc.text)
+    }
+
+    @Override
+    boolean check(String[] options) {
+        if (options.size() != 1) {
+            println("You need to provide two arguments: command and option")
+            printUsage()
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    void printUsage() {
+        println("Usage: devtools [-v] gfx option")
+        println()
+        println("on         visual_bars")
+        println("off        false")
+        println("lines      visual_lines")
+        println()
+    }
+}
+
+class DateCommand implements ICommand {
+    String[] date_single_option_possibilites = ['reset']
+    String[] date_format_supported = ['d', 'h', 'm', 's']
+    String[] date_opration_supported = ['+', '-']
+    private DateTime requestDate
+    private DateTime requestedDate
+    boolean isNorLater;
+
+    public static DateTime getDeviceDateTime(String adbPath) {
+        String command = adbPath + " date +%Y%m%d.%H%M%S"
+        def proc = command.execute()
+        proc.waitFor()
+        String deviceDate = proc.text
+
+        println(deviceDate)
+
+        int year = Integer.valueOf(deviceDate.take(4))
+        int month = Integer.valueOf(deviceDate[4..5])
+        int day = Integer.valueOf(deviceDate[6..7])
+        int hours = Integer.valueOf(deviceDate[9..10])
+        int minutes = Integer.valueOf(deviceDate[11..12])
+        int seconds = Integer.valueOf(deviceDate[13..14])
+
+        return new DateTime(year, month, day, hours, minutes, seconds)
+    }
+
+    private boolean isAValidDateSingleOption(String option) {
+        if (option in date_single_option_possibilites)
+            return true
+
+        return false
+    }
+
+    private DateTime applyRangeToDate(DateTime dateTime, def operation, int range, def rangeType) {
+        if (operation.equals("+")) {
+            return addRange(dateTime, rangeType, range)
+        } else {
+            return minusRange(dateTime, rangeType, range)
+        }
+    }
+
+    private DateTime addRange(DateTime fromDate, def rangeType, int range) {
+        switch (rangeType) {
+            case "d":
+                return fromDate.plusDays(range)
+
+            case "h":
+                return fromDate.plusHours(range)
+
+            case "m":
+                return fromDate.plusMinutes(range)
+
+            case "s":
+                return fromDate.plusSeconds(range)
+        }
+    }
+
+    private DateTime minusRange(DateTime fromDate, def rangeType, int range) {
+        switch (rangeType) {
+            case "d":
+                return fromDate.minusDays(range)
+                break
+
+            case "h":
+                return fromDate.minusHours(range)
+                break
+
+            case "m":
+                return fromDate.minusMinutes(range)
+                break
+
+            case "s":
+                return fromDate.minusSeconds(range)
+        }
+    }
+
+    private String buildCommand(String dateCommand) {
+        if (isNorLater) {
+            return "shell date " + dateCommand
+
+        } else {
+            return "shell date -s " + dateCommand
+        }
+    }
+
+    private String formatDate(DateTime date) {
+        String format
+        if (isNorLater) {
+            format = "MMddHHmmYYYY.ss"
+        } else {
+            format = "YYYYMMd.HHmmss"
+        }
+        DateTimeFormatter dateTimeFormatter = DateTimeFormat.forPattern(format)
+        return date.toString(dateTimeFormatter)
+    }
+
+    private boolean isNOrLater(String adbPath) {
+        GString apiLevelCmd = "$adbPath shell getprop ro.build.version.sdk";
+        def proc
+        proc = apiLevelCmd.execute()
+        proc.waitFor()
+
+        Integer apiLevel = 0
+        proc.in.text.eachLine { apiLevel = it.toInteger() }
+        if (apiLevel == 0) {
+            println("Could not retrieve API Level")
+            System.exit(-1)
+        } else {
+            if (apiLevel >= 24) {
+                return true
+            } else {
+                return false
+            }
+        }
+    }
+
+    @Override
+    void execute(String[] options, String adbPath) {
+        this.isNorLater = isNOrLater(adbPath)
+        this.requestDate = DateTime.now()
+        println(options)
+        if (options.size() == 1 && isAValidDateSingleOption(options[0])) {
+            // Reset Command
+            println("Setting device date and time to now")
+            this.requestedDate = DateTime.now();
+
+        } else {
+            DateTime deviceDateTime = getDeviceDateTime(adbPath)
+            options.each { option ->
+                if (option.length() > 4 || option.length() < 3) {
+                    Log.printHelpForSpecificCommand("date", true, option)
+                }
+
+                def operation = option.take(1).toString()
+                def rangeType = option.reverse().take(1).reverse()
+
+                if (!(operation in date_opration_supported)) {
+                    Log.printHelpForSpecificCommand("date", true, option)
+                }
+
+                if (!(rangeType in date_format_supported)) {
+                    Log.printHelpForSpecificCommand("date", true, option)
+                }
+
+                def range = option.substring(1, option.length() - 1)
+                if (!range.isNumber()) {
+                    Log.printHelpForSpecificCommand("date", true, option)
+                }
+
+                deviceDateTime = applyRangeToDate(deviceDateTime, operation, Integer.valueOf(range), rangeType)
+            }
+
+            this.requestedDate = deviceDateTime
+        }
+
+        def adbCommand = adbPath + buildCommand(formatDate(requestedDate))
+        def proc
+        proc = adbCommand.execute()
+        proc.waitFor()
+        proc.text
+
+        println("Date changed to " + requestedDate)
+    }
+
+    @Override
+    boolean check(String[] options) {
+        if (options.size() == 1 && isAValidDateSingleOption(options[0])) {
+            return true
+        } else {
+            if (options.length() > 4 || options.length() < 3) {
+                return false
+            }
+
+            options.each { option ->
+                def operation = option.take(1).toString()
+                def rangeType = option.reverse().take(1).reverse()
+
+                if (!(operation in date_opration_supported)) {
+                    return false
+                }
+
+                if (!(rangeType in date_format_supported)) {
+                    return false
+                }
+
+                def range = option.substring(1, option.length() - 1)
+                if (!range.isNumber()) {
+                    return false
+                }
+            }
+            return true
+        }
+    }
+
+    @Override
+    void printUsage() {
+        println("Usage: devtools.groovy [-v] date options")
+        println()
+        println("+xd     Add [x] days to the device time.")
+        println("-xd     Subtract [x] days from the device time.")
+        println()
+        println("+xh     Add [x] hours to the device time.")
+        println("-xh     Subtract [x] hours from the device time.")
+        println()
+        println("+xm     Add [x] minutes to the device time.")
+        println("-xm     Subtract [x] minutes from the device time.")
+        println()
+        println("+xs     Add [x] seconds to the device time.")
+        println("-xs     Subtract [x] seconds from the device time.")
+        println()
+    }
 }
