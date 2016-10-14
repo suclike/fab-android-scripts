@@ -9,7 +9,7 @@ import org.joda.time.format.*
 
 verbose = false
 serialNumber = ""
-targetDevice = ADBUtils.FLAG_TARGET_DEVICE_EMULATOR
+targetDevice = 0
 
 def cli = new CliBuilder()
 cli.with {
@@ -60,9 +60,6 @@ if (opts.e) {
     command = opts.arguments().get(0)
     options = opts.arguments().subList(1, opts.arguments().size())
 }
-
-println(command)
-println(options)
 
 //get adb exec
 ADBUtils adbUtils = new ADBUtils(targetDevice, verbose, serialNumber)
