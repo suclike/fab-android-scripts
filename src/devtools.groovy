@@ -6,18 +6,17 @@
 @Grab('joda-time:joda-time:2.9.4')
 import org.joda.time.DateTime
 import org.joda.time.format.*
-commands = ["gfx", "layout", "overdraw", "updates", "date"]
 
 verbose = false
 serialNumber = ""
 targetDevice = ADBUtils.FLAG_TARGET_DEVICE_EMULATOR
 
-def cli = new CliBuilder(usage: 'devtools.groovy command option')
+def cli = new CliBuilder()
 cli.with {
-    v longOpt: 'verbose', 'prints additional output'
-    d longOpt: 'serialNumber', 'Direct the adb command to the only attached USB device.'
-    e longOpt: 'serialNumber', 'Direct the adb command to the only running emulator instance.'
-    s longOpt: 'serialNumber', 'specify emulator/device instance, referred to by its adb-assigned serial number.'
+    v(longOpt: 'verbose', 'prints additional output')
+    d(longOpt: 'device', 'Direct the adb command to the only attached USB device.')
+    e(longOpt: 'emulator', 'Direct the adb command to the only running emulator instance.')
+    s(longOpt: 'serialNumber', 'specify emulator/device instance, referred to by its adb-assigned serial number.', args: 1)
 }
 def opts = cli.parse(args)
 
@@ -35,39 +34,33 @@ if (opts.v) {
     verbose = true
 }
 
-if (opts.d) {
-    targetDevice = ADBUtils.FLAG_TARGET_DEVICE_USB
-}
-
-if (opts.e) {
-    targetDevice = ADBUtils.FLAG_TARGET_DEVICE_EMULATOR
-}
-
-if (opts.s) {
-    targetDevice = ADBUtils.FLAG_TARGET_DEVICE_BY_SERIAL
-    serialNumber = opts.arguments().get(0)
-}
-
-//get adb exec
-ADBUtils adbUtils = new ADBUtils(targetDevice, verbose, serialNumber)
-
 //get args
 String command
 String[] options
 
-if (opts.e || opts.d) {
-    command = opts.arguments().get(1)
-    options = opts.arguments().subList(2, opts.arguments().size())
+if (opts.e) {
+    targetDevice = ADBUtils.FLAG_TARGET_DEVICE_EMULATOR
+
+    command = opts.arguments().get(0)
+    options = opts.arguments().subList(1, opts.arguments().size())
+} else if (opts.d) {
+    targetDevice = ADBUtils.FLAG_TARGET_DEVICE_USB
+
+    command = opts.arguments().get(0)
+    options = opts.arguments().subList(1, opts.arguments().size())
 } else if (opts.s) {
-    command = opts.arguments().get(2)
-    options = opts.arguments().subList(3, opts.arguments().size())
+    targetDevice = ADBUtils.FLAG_TARGET_DEVICE_BY_SERIAL
+    serialNumber = opts.s
+
+    command = opts.arguments().get(0)
+    options = opts.arguments().subList(1, opts.arguments().size())
 } else {
     command = opts.arguments().get(0)
     options = opts.arguments().subList(1, opts.arguments().size())
 }
 
-println(command)
-println(options)
+//get adb exec
+ADBUtils adbUtils = new ADBUtils(targetDevice, verbose, serialNumber)
 
 ICommand adbCommand
 switch (command) {
@@ -87,9 +80,9 @@ switch (command) {
         adbCommand = new DateCommand()
         break
     default:
-        Log.printHelpForSpecificCommand(command, false, null)
-
+        Log.printUsage(command)
 }
+
 if (adbCommand != null && adbCommand.check(options)) {
     adbCommand.execute(options, ADBUtils.adbPath)
 }
@@ -198,31 +191,54 @@ public class ADBUtils {
 }
 
 public class Log {
-    public static String[] commands = ["gfx", "layout", "overdraw", "updates", "date"]
+    public static void printUsage(GfxCommand command, boolean isOptionError) {
+        if (isOptionError) {
+            println("You need to provide two arguments: command and option")
+            println()
+        }
+        command.printUsage()
+    }
 
-    public static void printDevtoolsUsageHelp(String additionalMessage) {
-        println()
-        if (additionalMessage) {
-            println("Error $additionalMessage")
+    public static void printUsage(LayoutCommand command, boolean isOptionError) {
+        if (isOptionError) {
+            println("You need to provide two arguments: command and option")
+            println()
+        }
+        command.printUsage()
+    }
+
+    public static void printUsage(OverdrawCommand command, boolean isOptionError) {
+        if (isOptionError) {
+            println("You need to provide two arguments: command and option")
+            println()
+        }
+        command.printUsage()
+    }
+
+    public static void printUsage(UpdatesCommand command, boolean isOptionError) {
+        if (isOptionError) {
+            println("You need to provide two arguments: command and option")
+            println()
+        }
+        command.printUsage()
+    }
+
+    public static void printUsage(DateCommand command, boolean isOptionError, String option) {
+        if (isOptionError) {
+            println("Not valid command option: " + option + " for: date")
+            println()
+        }
+        command.printUsage()
+    }
+
+    public static void printUsage(String command) {
+        if (command) {
+            println("Could not find the command $command you provided")
             println()
         }
 
         println("Usage: devtools.groovy [-v] command option")
-        printDevtoolsOptionsUsageHelp(null)
-
-        for (int i = 0; i < commands.length; i++) {
-            printHelpForSpecificCommand(commands[i], false, null)
-        }
-
-        System.exit(-1)
-    }
-
-    public static void printDevtoolsOptionsUsageHelp(String additionalMessage) {
         println()
-
-        if (additionalMessage) {
-            println(additionalMessage)
-        }
 
         println("Usage: devtools.groovy options")
         println()
@@ -240,198 +256,13 @@ public class Log {
         println("Run devtools --help for more details on how to use devtools.")
         println()
 
+        printUsage(new GfxCommand(), false)
+        printUsage(new LayoutCommand(), false)
+        printUsage(new OverdrawCommand(), false)
+        printUsage(new UpdatesCommand(), false)
+        printUsage(new DateCommand(), false, null)
+
         System.exit(-1)
-    }
-
-    public static void printHelpForSpecificCommand(String command, boolean isOptionError, String option) {
-        println()
-        switch (command) {
-            case "gfx":
-                if (isOptionError) {
-                    println("You need to provide two arguments: command and option")
-                }
-                println("Usage: devtools.groovy [-v] gfx option")
-                println()
-                println("on         visual_bars")
-                println("off        false")
-                println("lines      visual_lines")
-                println()
-                break
-
-            case "layout":
-                if (isOptionError) {
-                    println("You need to provide two arguments: command and option")
-                }
-                println("Usage: devtools.groovy [-v] layout option")
-                println()
-                println("on         true")
-                println("off        false")
-                println()
-                break
-
-            case "overdraw":
-                if (isOptionError) {
-                    println("You need to provide two arguments: command and option")
-                }
-                println("Usage: devtools.groovy [-v] overdraw option")
-
-                println()
-                println("on         show")
-                println("off        false")
-                println("deut      show_deuteranomaly")
-                println()
-                println("On pre-kitkat")
-                println("on         true")
-                println("off        false")
-                println()
-                break
-
-            case "updates":
-                if (isOptionError) {
-                    println("You need to provide two arguments: command and option")
-                }
-                println("Usage: devtools.groovy [-v] updates option")
-                println()
-                println("on         0")
-                println("off        1")
-                println()
-
-                break
-
-            case "date":
-                if (isOptionError) {
-                    println("Not valid command option: " + option + " for: " + command)
-                } else {
-                    println("Not valid command: " + command)
-                }
-                println()
-                println("Usage: devtools.groovy [-v] date options")
-                println()
-                println("+xd     Add [x] days to the device time.")
-                println("-xd     Subtract [x] days from the device time.")
-                println()
-                println("+xh     Add [x] hours to the device time.")
-                println("-xh     Subtract [x] hours from the device time.")
-                println()
-                println("+xm     Add [x] minutes to the device time.")
-                println("-xm     Subtract [x] minutes from the device time.")
-                println()
-                println("+xs     Add [x] seconds to the device time.")
-                println("-xs     Subtract [x] seconds from the device time.")
-                println()
-                break
-
-            case "devtools":
-                printDevtoolsUsageHelp(option)
-                break
-
-            default:
-                println("Could not find the command $command you provided")
-                printDevtoolsUsageHelp(null)
-        }
-        System.exit(-1)
-    }
-}
-
-class UpdatesCommand implements ICommand {
-    String[] show_updates_map = ['on': '0', 'off': '1']
-
-    @Override
-    void execute(String[] options, String adbPath) {
-        def adbCommand = adbPath + "shell service call SurfaceFlinger 1002 android.ui.ISurfaceComposer" + show_updates_map[options[0]]
-        def proc
-        proc = adbCommand.execute()
-        proc.waitFor()
-        println(proc.text)
-    }
-
-    @Override
-    boolean check(String[] options) {
-        if (options.size() != 1) {
-            println("You need to provide two arguments: command and option")
-            printUsage()
-            return false;
-        }
-        return true;
-    }
-
-    @Override
-    void printUsage() {
-        println("Usage: devtools.groovy [-v] updates option")
-        println()
-        println("on         0")
-        println("off        1")
-        println()
-    }
-}
-
-class OverdrawCommand implements ICommand {
-    String[] overdraw_command_map = ['on': 'show', 'off': 'false', 'deut': 'show_deuteranomaly']
-    String[] overdraw_command_map_preKitKat = ['on': 'true', 'off': 'false']
-
-    @Override
-    void execute(String[] options, String adbPath) {
-        def adbCommand = adbPath + "shell setprop debug.hwui.overdraw " + overdraw_command_map[options[0]]
-        def proc
-        proc = adbCommand.execute()
-        proc.waitFor()
-        println(proc.text)
-
-        adbCommand = adbPath + "shell setprop debug.hwui.show_overdraw " + overdraw_command_map_preKitKat[options[0]]
-        proc = adbCommand.execute()
-        proc.waitFor()
-        println(proc.text)
-    }
-
-    @Override
-    boolean check(String[] options) {
-        if (options.size() != 1) {
-            println("You need to provide two arguments: command and option")
-            printUsage()
-            return false;
-        }
-        return true;
-    }
-
-    @Override
-    void printUsage() {
-        println("Usage: devtools.groovy [-v] layout option")
-        println()
-        println("on         true")
-        println("off        false")
-        println()
-    }
-}
-
-class LayoutCommand implements ICommand {
-    String[] layout_command_map = ['on': 'true', 'off': 'false']
-
-    @Override
-    void execute(String[] options, String adbPath) {
-        def adbCommand = adbPath + "shell setprop debug.layout " + layout_command_map[options[0]]
-        def proc
-        proc = adbCommand.execute()
-        proc.waitFor()
-        println(proc.text)
-    }
-
-    @Override
-    boolean check(String[] options) {
-        if (options.size() != 1) {
-            println("You need to provide two arguments: command and option")
-            printUsage()
-            return false;
-        }
-        return true;
-    }
-
-    @Override
-    void printUsage() {
-        println("Usage: devtools.groovy [-v] layout option")
-        println()
-        println("on         true")
-        println("off        false")
-        println()
     }
 }
 
@@ -441,6 +272,7 @@ class GfxCommand implements ICommand {
     @Override
     void execute(String[] options, String adbPath) {
         def adbCommand = adbPath + "shell setprop debug.hwui.profile " + gfx_command_map[options[1]]
+        println(adbCommand)
         def proc
         proc = adbCommand.execute()
         proc.waitFor()
@@ -468,6 +300,112 @@ class GfxCommand implements ICommand {
     }
 }
 
+class LayoutCommand implements ICommand {
+    String[] layout_command_map = ['on': 'true', 'off': 'false']
+
+    @Override
+    void execute(String[] options, String adbPath) {
+        def adbCommand = adbPath + "shell setprop debug.layout " + layout_command_map[options[0]]
+        println(adbCommand)
+        def proc
+        proc = adbCommand.execute()
+        proc.waitFor()
+        println(proc.text)
+    }
+
+    @Override
+    boolean check(String[] options) {
+        if (options.size() != 1) {
+            println("You need to provide two arguments: command and option")
+            printUsage()
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    void printUsage() {
+        println("Usage: devtools.groovy [-v] layout option")
+        println()
+        println("on         true")
+        println("off        false")
+        println()
+    }
+}
+
+class OverdrawCommand implements ICommand {
+    String[] overdraw_command_map = ['on': 'show', 'off': 'false', 'deut': 'show_deuteranomaly']
+    String[] overdraw_command_map_preKitKat = ['on': 'true', 'off': 'false']
+
+    @Override
+    void execute(String[] options, String adbPath) {
+        def adbCommand = adbPath + "shell setprop debug.hwui.overdraw " + overdraw_command_map[options[0]]
+        println(adbCommand)
+        def proc
+        proc = adbCommand.execute()
+        proc.waitFor()
+        println(proc.text)
+
+        adbCommand = adbPath + "shell setprop debug.hwui.show_overdraw " + overdraw_command_map_preKitKat[options[0]]
+        println(adbCommand)
+        proc = adbCommand.execute()
+        proc.waitFor()
+        println(proc.text)
+    }
+
+    @Override
+    boolean check(String[] options) {
+        if (options.size() != 1) {
+            println("You need to provide two arguments: command and option")
+            printUsage()
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    void printUsage() {
+        println("Usage: devtools.groovy [-v] layout option")
+        println()
+        println("on         true")
+        println("off        false")
+        println()
+    }
+}
+
+class UpdatesCommand implements ICommand {
+    String[] show_updates_map = ['on': '0', 'off': '1']
+
+    @Override
+    void execute(String[] options, String adbPath) {
+        def adbCommand = adbPath + "shell service call SurfaceFlinger 1002 android.ui.ISurfaceComposer" + show_updates_map[options[0]]
+        println(adbCommand)
+        def proc
+        proc = adbCommand.execute()
+        proc.waitFor()
+        println(proc.text)
+    }
+
+    @Override
+    boolean check(String[] options) {
+        if (options.size() != 1) {
+            println("You need to provide two arguments: command and option")
+            printUsage()
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    void printUsage() {
+        println("Usage: devtools.groovy [-v] updates option")
+        println()
+        println("on         0")
+        println("off        1")
+        println()
+    }
+}
+
 class DateCommand implements ICommand {
     String[] date_single_option_possibilites = ['reset']
     String[] date_format_supported = ['d', 'h', 'm', 's']
@@ -477,12 +415,10 @@ class DateCommand implements ICommand {
     boolean isNorLater;
 
     public static DateTime getDeviceDateTime(String adbPath) {
-        String command = adbPath + " date +%Y%m%d.%H%M%S"
+        String command = adbPath + "shell date +%Y%m%d.%H%M%S"
         def proc = command.execute()
         proc.waitFor()
         String deviceDate = proc.text
-
-        println(deviceDate)
 
         int year = Integer.valueOf(deviceDate.take(4))
         int month = Integer.valueOf(deviceDate[4..5])
@@ -565,7 +501,7 @@ class DateCommand implements ICommand {
     }
 
     private boolean isNOrLater(String adbPath) {
-        GString apiLevelCmd = "$adbPath shell getprop ro.build.version.sdk";
+        String apiLevelCmd = adbPath + "shell getprop ro.build.version.sdk"
         def proc
         proc = apiLevelCmd.execute()
         proc.waitFor()
@@ -588,7 +524,6 @@ class DateCommand implements ICommand {
     void execute(String[] options, String adbPath) {
         this.isNorLater = isNOrLater(adbPath)
         this.requestDate = DateTime.now()
-        println(options)
         if (options.size() == 1 && isAValidDateSingleOption(options[0])) {
             // Reset Command
             println("Setting device date and time to now")
@@ -598,23 +533,27 @@ class DateCommand implements ICommand {
             DateTime deviceDateTime = getDeviceDateTime(adbPath)
             options.each { option ->
                 if (option.length() > 4 || option.length() < 3) {
-                    Log.printHelpForSpecificCommand("date", true, option)
+                    Log.printUsage(this, true, option)
+                    System.exit(-1)
                 }
 
                 def operation = option.take(1).toString()
                 def rangeType = option.reverse().take(1).reverse()
 
                 if (!(operation in date_opration_supported)) {
-                    Log.printHelpForSpecificCommand("date", true, option)
+                    Log.printUsage(this, true, option)
+                    System.exit(-1)
                 }
 
                 if (!(rangeType in date_format_supported)) {
-                    Log.printHelpForSpecificCommand("date", true, option)
+                    Log.printUsage(this, true, option)
+                    System.exit(-1)
                 }
 
                 def range = option.substring(1, option.length() - 1)
                 if (!range.isNumber()) {
-                    Log.printHelpForSpecificCommand("date", true, option)
+                    Log.printUsage(this, true, option)
+                    System.exit(-1)
                 }
 
                 deviceDateTime = applyRangeToDate(deviceDateTime, operation, Integer.valueOf(range), rangeType)
@@ -624,6 +563,7 @@ class DateCommand implements ICommand {
         }
 
         def adbCommand = adbPath + buildCommand(formatDate(requestedDate))
+        println(adbCommand)
         def proc
         proc = adbCommand.execute()
         proc.waitFor()
@@ -637,10 +577,6 @@ class DateCommand implements ICommand {
         if (options.size() == 1 && isAValidDateSingleOption(options[0])) {
             return true
         } else {
-            if (options.length() > 4 || options.length() < 3) {
-                return false
-            }
-
             options.each { option ->
                 def operation = option.take(1).toString()
                 def rangeType = option.reverse().take(1).reverse()
