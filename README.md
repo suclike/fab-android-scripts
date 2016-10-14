@@ -11,6 +11,12 @@ via devtools you can switch:
 on and off via command line.
 Works on emulators and devices. And, yes: it will control multiple devices at once.
 
+## Usage
+
+```cmd
+devtools [-d | -e | -s <serialNumber>] command [command-options]
+```
+
 ## Options
     -d                      Direct an adb command to the only attached USB device.
                             Returns an error if more than one USB device is attached.
@@ -31,7 +37,9 @@ Set the device date and time using +FORMAT or reset options
 
 #### Usage
 
-Example: `date +1h +30m -1d`
+```cmd
+devtools [-d | -e | -s <serialNumber>] date options
+```
 
 #### Options
 
@@ -52,6 +60,23 @@ Example: `date +1h +30m -1d`
 `date +[0-99]s` will add the specified number of *seconds* to the device time
 
 `date -[0-99]s` will subtract the specified number of *seconds* from the device time
+
+#### Examples
+
+Example with reset command
+
+```cmd
+devtools [-d | -e | -s <serialNumber>] reset
+```
+
+
+Example with date command
+
+```cmd
+devtools [-d | -e | -s <serialNumber>] date +1d -7h +5m +60s
+```
+
+The order of date options doesn't affect the result
 
 Check the video:
 
