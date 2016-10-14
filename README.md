@@ -11,19 +11,37 @@ via devtools you can switch:
 on and off via command line.
 Works on emulators and devices. And, yes: it will control multiple devices at once.
 
-Check the video:
+## Usage
 
-[![IMAGE ALT TEXT HERE](http://img.youtube.com/vi/GOJaOsJ0BJs/0.jpg)](http://www.youtube.com/watch?v=GOJaOsJ0BJs)
+```cmd
+devtools [-d | -e | -s <serialNumber>] command [command-options]
+```
 
-# date
+## Options
+    -d                      Direct an adb command to the only attached USB device.
+                            Returns an error if more than one USB device is attached.
+
+    -e                      Direct an adb command to the only running emulator instance.
+                            Returns an error if more than one emulator instance is running.
+
+    -s <serialNumber>       Direct an adb command a specific emulator/device instance, referred to by its adb-assigned serial number.
+                            Directing Commands to a Specific Emulator/Device Instance.
+
+    -v                      Print additional details about the results of your command.
+
+## Commands
+
+### date
 
 Set the device date and time using +FORMAT or reset options
 
-## Usage
+#### Usage
 
-Example: `date +1h +30m -1d`
+```cmd
+devtools [-d | -e | -s <serialNumber>] date options
+```
 
-## Options
+#### Options
 
 `date reset` to set the device date and time to now
 
@@ -42,6 +60,27 @@ Example: `date +1h +30m -1d`
 `date +[0-99]s` will add the specified number of *seconds* to the device time
 
 `date -[0-99]s` will subtract the specified number of *seconds* from the device time
+
+#### Examples
+
+Example with reset command
+
+```cmd
+devtools [-d | -e | -s <serialNumber>] date reset
+```
+
+
+Example with date command
+
+```cmd
+devtools [-d | -e | -s <serialNumber>] date +1d -7h +5m +60s
+```
+
+The order of date options doesn't affect the result
+
+Check the video:
+
+[![IMAGE ALT TEXT HERE](http://img.youtube.com/vi/GOJaOsJ0BJs/0.jpg)](http://www.youtube.com/watch?v=GOJaOsJ0BJs)
 
 # adbwifi
 
@@ -88,4 +127,9 @@ You can use devtools with adb-wrapper https://github.com/zielmicha/adb-wrapper
     
     curl https://raw.githubusercontent.com/zielmicha/adb-wrapper/master/adb_wrapper.sh > /usr/local/bin/adb-wrapper.sh
     alias adb=/usr/local/bin/adb-wrapper.sh
-    
+
+# Troubleshooting
+
+If you have issues installing fab-android-scripts via brew as described above try:
+
+    brew install https://raw.githubusercontent.com/thefabulous/fab-android-scripts/master/fab-android-scripts.rb
