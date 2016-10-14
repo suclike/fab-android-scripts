@@ -500,7 +500,7 @@ class DateCommand implements ICommand {
         if (isNorLater) {
             format = "MMddHHmmYYYY.ss"
         } else {
-            format = "YYYYMMd.HHmmss"
+            format = "YYYYMMdd.HHmmss"
         }
         DateTimeFormatter dateTimeFormatter = DateTimeFormat.forPattern(format)
         return date.toString(dateTimeFormatter)
