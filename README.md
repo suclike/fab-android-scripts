@@ -80,8 +80,9 @@ Make sure you have groovy installed, and adb-executeable in your PATH
 
 On mac with brew just run:
 
-    brew
-    brew install https://raw.githubusercontent.com/dhelleberg/android-scripts/master/androidscripts.rb
+    brew tap thefabulous/fab-android-scripts git@github.com:thefabulous/fab-android-scripts.git
+    brew update
+    brew install fab-android-scripts
 
 
 
