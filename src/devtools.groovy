@@ -436,7 +436,7 @@ class DateCommand implements ICommand {
     String[] date_opration_supported = ['+', '-']
     private DateTime requestDate
     private DateTime requestedDate
-    boolean isNorLater;
+    boolean isMOrLater;
 
     public static DateTime getDeviceDateTime(String adbPath) {
         String command = adbPath + "shell date +%Y%m%d.%H%M%S"
@@ -505,7 +505,7 @@ class DateCommand implements ICommand {
     }
 
     private String buildCommand(String dateCommand) {
-        if (isNorLater) {
+        if (isMOrLater) {
             return "shell date " + dateCommand
 
         } else {
@@ -515,7 +515,7 @@ class DateCommand implements ICommand {
 
     private String formatDate(DateTime date) {
         String format
-        if (isNorLater) {
+        if (isMOrLater) {
             format = "MMddHHmmYYYY.ss"
         } else {
             format = "YYYYMMdd.HHmmss"
@@ -524,7 +524,7 @@ class DateCommand implements ICommand {
         return date.toString(dateTimeFormatter)
     }
 
-    private boolean isNOrLater(String adbPath) {
+    private boolean isMOrLater(String adbPath) {
         String apiLevelCmd = adbPath + "shell getprop ro.build.version.sdk"
         def proc
         proc = apiLevelCmd.execute()
@@ -536,7 +536,7 @@ class DateCommand implements ICommand {
             println("Could not retrieve API Level")
             System.exit(-1)
         } else {
-            if (apiLevel >= 24) {
+            if (apiLevel >= 23) {
                 return true
             } else {
                 return false
@@ -546,7 +546,7 @@ class DateCommand implements ICommand {
 
     @Override
     void execute(String[] options, String adbPath) {
-        this.isNorLater = isNOrLater(adbPath)
+        this.isMOrLater = isMOrLater(adbPath)
         this.requestDate = DateTime.now()
         if (options.size() == 1 && isAValidDateSingleOption(options[0])) {
             // Reset Command
